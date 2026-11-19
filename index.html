@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Province Map Editor</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="toolbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <div class="brand-text">
+        <strong>Province Map Editor</strong>
+        <span>Automatic labeling &amp; neighbor detection</span>
+      </div>
+    </div>
+
+    <nav class="tabs" role="tablist" aria-label="Editor sections">
+      <button class="tab is-active" id="tabProvinces" type="button" role="tab" aria-selected="true">Provinces</button>
+      <button class="tab" id="tabCountries" type="button" role="tab" aria-selected="false">Countries</button>
+    </nav>
+
+    <div class="toolbar-actions">
+      <button class="btn" id="btnUploadMap" type="button" title="Upload a PNG, JPG or SVG map">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8m0-8 3 3M8 2 5 5M2.5 10.5v2A1.5 1.5 0 0 0 4 14h8a1.5 1.5 0 0 0 1.5-1.5v-2"/></svg>
+        Upload Map
+      </button>
+      <button class="btn" id="btnImportJson" type="button" title="Import an existing provinces.json file">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8m0-8 3 3M8 2 5 5M2.5 10.5v2A1.5 1.5 0 0 0 4 14h8a1.5 1.5 0 0 0 1.5-1.5v-2"/></svg>
+        Import JSON
+      </button>
+      <span class="toolbar-sep" aria-hidden="true"></span>
+      <button class="btn" id="btnAnalyze" type="button" title="Rescan the map and recalculate records and neighbors">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.7-4M13.5 2v3.5H10"/></svg>
+        Analyze Map
+      </button>
+      <button class="btn" id="btnReset" type="button" title="Clear the current selection">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3 3 10 10M13 3 3 13"/></svg>
+        Reset Selection
+      </button>
+      <span class="toolbar-sep" aria-hidden="true"></span>
+      <button class="btn btn-primary" id="btnExport" type="button" title="Download the province data as JSON">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14V6m0 8 3-3m-3 3-3-3M2.5 5.5v-2A1.5 1.5 0 0 1 4 2h8a1.5 1.5 0 0 1 1.5 1.5v2"/></svg>
+        Export JSON
+      </button>
+    </div>
+
+    <div class="toolbar-meta">
+      <span class="file-chip file-chip-empty" id="mapChip" title="No map loaded">No map</span>
+      <span class="file-chip file-chip-empty" id="jsonChip" title="No JSON loaded">No JSON</span>
+      <button class="btn btn-ghost" id="btnOptions" type="button" title="Analysis options">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/><path d="M13 8c0-.5-.05-.9-.15-1.3l1.5-1-1.4-2.4-1.7.6c-.7-.6-1.4-1-2.2-1.2L8.8 1H7.2l-.25 1.7c-.8.2-1.5.6-2.2 1.2l-1.7-.6L1.65 5.7l1.5 1c-.1.4-.15.8-.15 1.3s.05.9.15 1.3l-1.5 1 1.4 2.4 1.7-.6c.7.6 1.4 1 2.2 1.2L7.2 15h1.6l.25-1.7c.8-.2 1.5-.6 2.2-1.2l1.7.6 1.4-2.4-1.5-1c.1-.4.15-.8.15-1.3Z"/></svg>
+        Options
+      </button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <aside class="sidebar">
+      <div class="sidebar-panel" id="provinceSidebar">
+        <div class="sidebar-top">
+          <label class="search">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>
+            <input type="search" id="searchInput" placeholder="Search name, color or id" autocomplete="off" spellcheck="false">
+          </label>
+          <div class="filter-row" id="filterRow">
+            <button class="chip is-active" data-filter="all" type="button">All</button>
+            <button class="chip" data-filter="unlabeled" type="button">Unlabeled</button>
+            <button class="chip" data-filter="labeled" type="button">Labeled</button>
+            <button class="chip" data-filter="missing" type="button">Not in map</button>
+          </div>
+        </div>
+        <div class="province-list" id="provinceList">
+          <p class="empty-hint">Upload a map and import a JSON file to generate province records automatically.</p>
+        </div>
+      </div>
+
+      <div class="sidebar-panel hidden" id="countrySidebar">
+        <div class="sidebar-top">
+          <label class="search">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>
+            <input type="search" id="countrySearch" placeholder="Search code, name or id" autocomplete="off" spellcheck="false">
+          </label>
+          <button class="btn btn-primary btn-block" id="btnCreateCountry" type="button">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>
+            Create Country
+          </button>
+          <div class="filter-row">
+            <button class="chip" id="btnImportCountries" type="button" title="Import a countries.json file">Import Countries</button>
+            <button class="chip" id="btnExportCountries" type="button" title="Download countries.json">Export Countries</button>
+          </div>
+        </div>
+        <div class="province-list" id="countryList">
+          <p class="empty-hint">No countries yet. Use <strong>Create Country</strong> or import a <code>countries.json</code> file.</p>
+        </div>
+        <div class="sidebar-foot">
+          <span id="countrySummary">No countries</span>
+          <span class="dirty-badge hidden" id="countryDirty">Unsaved changes</span>
+        </div>
+      </div>
+    </aside>
+
+    <section class="viewport" id="viewport" tabindex="0" aria-label="Map workspace">
+      <div class="stage" id="stage"></div>
+
+      <div class="country-view-modes hidden" id="countryViewModes" role="group" aria-label="Country map view">
+        <span class="view-modes-label">View</span>
+        <button class="chip is-active" data-view="ownership" type="button">Ownership</button>
+        <button class="chip" data-view="control" type="button">Control</button>
+        <button class="chip" data-view="province" type="button">Province</button>
+      </div>
+
+      <div class="empty-state" id="emptyState">
+        <div class="empty-card">
+          <h1>Start with a map</h1>
+          <p>Upload a colored province map (PNG, JPG or SVG), then import your existing <code>provinces.json</code>.</p>
+          <p>Every unique province color gets a record with an ID automatically — no clicking required. Neighbors are computed from pixel adjacency as soon as both files are loaded.</p>
+          <div class="empty-actions">
+            <button class="btn btn-primary" id="btnEmptyUpload" type="button">Upload Map</button>
+            <button class="btn" id="btnEmptyImport" type="button">Import JSON</button>
+          </div>
+        </div>
+      </div>
+
+      <aside class="country-panel hidden" id="countryPanel" aria-label="Country editor">
+        <div class="cp-head">
+          <span class="swatch swatch-lg" id="cpSwatch"></span>
+          <div class="cp-heading">
+            <h2 id="cpName">Country</h2>
+            <span class="popup-sub" id="cpMeta"></span>
+          </div>
+          <button class="icon-btn" id="cpClose" type="button" title="Close (Esc)" aria-label="Close">✕</button>
+        </div>
+
+        <div class="cp-body" id="cpRead">
+          <dl class="cp-facts">
+            <div><dt>Code</dt><dd id="cpCode"></dd></div>
+            <div><dt>ID</dt><dd id="cpId"></dd></div>
+            <div><dt>Color</dt><dd id="cpColor" class="cp-mono"></dd></div>
+            <div><dt>Owned</dt><dd id="cpOwnedCount">0</dd></div>
+            <div><dt>Controlled</dt><dd id="cpControlledCount">0</dd></div>
+          </dl>
+          <div class="cp-actions">
+            <button class="btn" id="cpEdit" type="button">Edit</button>
+            <button class="btn btn-danger" id="cpDelete" type="button">Delete</button>
+          </div>
+          <div class="cp-lists">
+            <section class="cp-list-block">
+              <h3>Owned provinces <span class="cp-count" id="cpOwnedHeading"></span></h3>
+              <ul class="cp-list" id="cpOwnedList"></ul>
+            </section>
+            <section class="cp-list-block">
+              <h3>Controlled provinces <span class="cp-count" id="cpControlledHeading"></span></h3>
+              <ul class="cp-list" id="cpControlledList"></ul>
+            </section>
+          </div>
+        </div>
+
+        <form class="cp-body hidden" id="cpForm" novalidate>
+          <label class="field">
+            <span class="field-label">Country code</span>
+            <input class="input input-mono" id="cpCodeInput" maxlength="16" autocomplete="off" spellcheck="false">
+          </label>
+          <label class="field">
+            <span class="field-label">Country name</span>
+            <input class="input" id="cpNameInput" maxlength="80" autocomplete="off" spellcheck="false">
+          </label>
+          <div class="field">
+            <span class="field-label">Country color</span>
+            <div class="color-row">
+              <input type="color" class="color-picker" id="cpColorPicker" aria-label="Country color picker">
+              <input class="input input-mono" id="cpColorInput" maxlength="7" autocomplete="off" spellcheck="false">
+              <span class="swatch" id="cpColorPreview"></span>
+            </div>
+          </div>
+          <div class="popup-error hidden" id="cpFormError"></div>
+          <div class="cp-actions">
+            <button class="btn" id="cpCancel" type="button">Cancel</button>
+            <button class="btn btn-primary" id="cpSave" type="submit">Save</button>
+          </div>
+        </form>
+
+        <div class="cp-assign" id="cpAssign">
+          <span class="field-label">Assign by clicking the map</span>
+          <div class="segmented">
+            <button class="chip" id="cpModeOwned" type="button" data-mode="owned_provinces">Owned mode</button>
+            <button class="chip" id="cpModeControlled" type="button" data-mode="controlled_provinces">Controlled mode</button>
+          </div>
+          <p class="field-hint" id="cpModeHint"></p>
+        </div>
+
+        <div class="cp-conflicts hidden" id="cpConflicts"></div>
+      </aside>
+
+      <div class="popup hidden" id="popup" role="dialog" aria-labelledby="popupTitle">
+        <div class="popup-header">
+          <div class="popup-title">
+            <span class="swatch swatch-lg" id="popupSwatch"></span>
+            <div>
+              <h2 id="popupTitle">Province</h2>
+              <span class="popup-sub" id="popupSub"></span>
+            </div>
+          </div>
+          <button class="icon-btn" id="popupClose" type="button" title="Close (Esc)" aria-label="Close">✕</button>
+        </div>
+        <label class="field">
+          <span class="field-label">Color</span>
+          <input class="input input-mono" id="popupColor" type="text" readonly tabindex="-1">
+        </label>
+        <label class="field">
+          <span class="field-label">Name</span>
+          <input class="input" id="popupName" type="text" maxlength="80" placeholder="Enter province name" autocomplete="off" spellcheck="false">
+        </label>
+        <label class="field">
+          <span class="field-label">Type</span>
+          <select class="input" id="popupType">
+            <option value="land">Land</option>
+            <option value="sea">Sea</option>
+          </select>
+        </label>
+        <div class="popup-note" id="popupNeighbors"></div>
+        <div class="popup-note popup-note-warn hidden" id="popupDisconnected"></div>
+        <div class="popup-note popup-note-info hidden" id="popupWarning">This province already has saved information.</div>
+        <div class="popup-error hidden" id="popupError"></div>
+        <div class="popup-actions">
+          <button class="btn btn-primary" id="popupDone" type="button">Done</button>
+        </div>
+      </div>
+
+      <div class="busy hidden" id="busy">
+        <div class="spinner" aria-hidden="true"></div>
+        <span id="busyText">Analyzing map…</span>
+      </div>
+
+      <div class="zoom-controls">
+        <button class="icon-btn" id="btnZoomOut" type="button" title="Zoom out" aria-label="Zoom out">−</button>
+        <span class="zoom-readout" id="zoomReadout">100%</span>
+        <button class="icon-btn" id="btnZoomIn" type="button" title="Zoom in" aria-label="Zoom in">+</button>
+        <button class="icon-btn icon-btn-text" id="btnFit" type="button" title="Fit map to view">Fit</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="statusbar">
+    <div class="stat"><span class="stat-label">Detected colors</span><span class="stat-value" id="statDetected">0</span></div>
+    <div class="stat"><span class="stat-label">Province records</span><span class="stat-value" id="statRecords">0</span></div>
+    <div class="stat"><span class="stat-label">Labeled</span><span class="stat-value" id="statLabeled">0</span></div>
+    <div class="stat"><span class="stat-label">Unlabeled</span><span class="stat-value" id="statUnlabeled">0</span></div>
+    <div class="stat"><span class="stat-label">Neighbor relationships</span><span class="stat-value" id="statNeighbors">0</span></div>
+    <button class="status-warnings hidden" id="statWarnings" type="button" title="Show the last analysis summary"></button>
+    <span class="status-hint">Click a province to highlight and edit it · drag to pan · scroll to zoom</span>
+  </footer>
+</div>
+
+<input type="file" id="mapInput" accept="image/png,image/jpeg,image/svg+xml,.png,.jpg,.jpeg,.svg" hidden>
+<input type="file" id="jsonInput" accept="application/json,.json,text/plain" hidden>
+<input type="file" id="countriesInput" accept="application/json,.json,text/plain" hidden>
+
+<div class="modal hidden" id="countryModal" role="dialog" aria-modal="true" aria-labelledby="countryModalTitle">
+  <div class="modal-card">
+    <h2 id="countryModalTitle">Create country</h2>
+    <p class="modal-text">New countries receive the next available country ID (<span id="countryNextId">1</span>).</p>
+    <label class="field">
+      <span class="field-label">Country code</span>
+      <input class="input input-mono" id="countryCodeInput" maxlength="16" placeholder="USA" autocomplete="off" spellcheck="false">
+      <span class="field-hint">Unique key for countries.json — letters, digits, “-” or “_”.</span>
+    </label>
+    <label class="field">
+      <span class="field-label">Country name</span>
+      <input class="input" id="countryNameInput" maxlength="80" placeholder="United States of America" autocomplete="off" spellcheck="false">
+    </label>
+    <div class="field">
+      <span class="field-label">Country color</span>
+      <div class="color-row">
+        <input type="color" class="color-picker" id="countryColorPicker" aria-label="Country color picker">
+        <input class="input input-mono" id="countryColorInput" maxlength="7" placeholder="5b6ee1" autocomplete="off" spellcheck="false">
+        <span class="swatch" id="countryColorPreview"></span>
+      </div>
+      <span class="field-hint">Pick a color or type a HEX value. Stored without “#”.</span>
+    </div>
+    <div class="popup-error hidden" id="countryFormError"></div>
+    <div class="modal-actions">
+      <button class="btn" id="countryCreateCancel" type="button">Cancel</button>
+      <button class="btn btn-primary" id="countryCreateConfirm" type="button">Create</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal hidden" id="countryDeleteModal" role="dialog" aria-modal="true" aria-labelledby="countryDeleteTitle">
+  <div class="modal-card modal-card-sm">
+    <h2 id="countryDeleteTitle">Delete country</h2>
+    <p class="modal-text">Are you sure you want to delete this country?</p>
+    <p class="modal-note" id="countryDeleteDetail"></p>
+    <p class="popup-note">Provinces are not deleted. Only the country and its province assignments are removed.</p>
+    <div class="modal-actions">
+      <button class="btn" id="countryDeleteCancel" type="button">Cancel</button>
+      <button class="btn btn-danger" id="countryDeleteConfirm" type="button">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal hidden" id="summaryModal" role="dialog" aria-modal="true" aria-labelledby="summaryTitle">
+  <div class="modal-card modal-card-wide">
+    <h2 id="summaryTitle">Map Analysis Complete</h2>
+    <dl class="summary-grid" id="summaryStats"></dl>
+    <div class="summary-warnings" id="summaryWarnings"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="summaryClose" type="button">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal hidden" id="deleteModal" role="dialog" aria-modal="true" aria-labelledby="deleteTitle">
+  <div class="modal-card modal-card-sm">
+    <h2 id="deleteTitle">Delete province</h2>
+    <p class="modal-text">Are you sure you want to delete this province?</p>
+    <p class="modal-note" id="deleteDetail"></p>
+    <div class="modal-actions">
+      <button class="btn" id="deleteCancel" type="button">Cancel</button>
+      <button class="btn btn-danger" id="deleteConfirm" type="button">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal hidden" id="optionsModal" role="dialog" aria-modal="true" aria-labelledby="optionsTitle">
+  <div class="modal-card">
+    <h2 id="optionsTitle">Analysis options</h2>
+    <p class="modal-text">These settings are applied when the map is analyzed.</p>
+    <label class="field">
+      <span class="field-label">Color tolerance</span>
+      <input class="input" id="optTolerance" type="number" min="0" max="150" step="1">
+      <span class="field-hint">0 = exact color matching. Higher values merge near-identical colors such as anti-aliased edges. Merges are always reported.</span>
+    </label>
+    <label class="field">
+      <span class="field-label">Minimum region size (pixels)</span>
+      <input class="input" id="optMinRegion" type="number" min="1" max="1000000" step="1">
+      <span class="field-hint">Colors covering fewer pixels than this are ignored. Keep at 1 to record every detected color.</span>
+    </label>
+    <label class="field">
+      <span class="field-label">Ignored colors</span>
+      <input class="input input-mono" id="optIgnore" type="text" placeholder="e.g. 000000, ffffff">
+      <span class="field-hint">Comma-separated HEX codes treated as background or border colors. They are excluded from provinces and from neighbor detection.</span>
+    </label>
+    <div class="modal-actions">
+      <button class="btn" id="optCancel" type="button">Cancel</button>
+      <button class="btn btn-primary" id="optApply" type="button">Apply &amp; analyze</button>
+    </div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script src="js/analyzer.js"></script>
+<script src="js/countries.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
